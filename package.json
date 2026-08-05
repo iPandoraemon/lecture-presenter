@@ -1,0 +1,12 @@
+{
+  "name": "lecture-presenter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "claude": { "enabled": true, "command": "claude", "args": ["-p", "{prompt}"], "timeout": 60 },
+  "kimi": { "enabled": true, "command": "kimi", "args": ["-p", "{prompt}"], "timeout": 60 },
+  "mock": {
+    "enabled": true,
+    "command": "node",
+    "args": ["-e", "console.log(JSON.stringify({template:'key-points',slots:{title:'示例标题',points:['甲','乙','丙']},answer:'这是 mock 回答'}))"],
+    "timeout": 10
+  }
+}
