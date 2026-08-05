@@ -6,8 +6,9 @@ export function parseAgentOutput(stdout) {
   try {
     const obj = JSON.parse(match[0]);
     if (typeof obj.answer !== 'string' || !obj.answer) return { answer: text };
-    if (typeof obj.template === 'string' && obj.slots && typeof obj.slots === 'object') {
-      return { template: obj.template, slots: obj.slots, answer: obj.answer };
+    if (typeof obj.template === 'string') {
+      const slots = (obj.slots && typeof obj.slots === 'object' && !Array.isArray(obj.slots)) ? obj.slots : {};
+      return { template: obj.template, slots, answer: obj.answer };
     }
     return { answer: obj.answer };
   } catch {

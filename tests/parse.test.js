@@ -9,6 +9,11 @@ test('解析合法 JSON 输出', () => {
   assert.equal(out.answer, '你好');
 });
 
+test('template 无 slots 时填默认仍返回 template', () => {
+  const out = parseAgentOutput('{"template":"key-points","answer":"你好"}');
+  assert.deepEqual(out, { template: 'key-points', slots: {}, answer: '你好' });
+});
+
 test('JSON 前后有杂质也能解析', () => {
   const out = parseAgentOutput('前言...\n{"answer":"只答"}\n后记');
   assert.equal(out.answer, '只答');

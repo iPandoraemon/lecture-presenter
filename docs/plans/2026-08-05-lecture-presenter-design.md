@@ -59,8 +59,8 @@ v1 内置 4 个模板:
 
 ### 模板扩展机制(硬性要求)
 
-- 后端启动时扫描 `templates/`,发现含 `meta.json + view.html + style.css` 的目录即自动注册
-- 新增模板 = 新建目录放 3 个文件 + 重启服务,不改任何代码
+- 每次请求时扫描 `templates/`,发现含 `meta.json + view.html + style.css` 的目录即自动注册
+- 新增模板 = 新建目录放 3 个文件即可,无需重启服务,不改任何代码
 - `templates/README.md` 记录 meta.json schema 与最小示例
 - `GET /api/templates` 返回当前模板清单,便于调试
 
@@ -88,7 +88,7 @@ spawn 时将 `{prompt}` 替换为完整 prompt,stdout 即回答。新增 Agent �
 
 - CLI 不存在/超时/非零退出 → 右栏明确错误气泡,不阻塞课件
 - Agent 返回非法 JSON → 纯文本兜底为 answer,不生成动态幻灯片
-- JSON 合法但模板 id 不存在/槽位缺失 → 按 meta.json 校验,截断/填默认,仍渲染
+- JSON 合法但模板 id 不存在/槽位缺失(含 slots 整体缺失)→ 按 meta.json 校验,截断/填默认,仍渲染
 - 调用中禁止重复发送,超时默认 60s(可配置)
 
 ## 测试
