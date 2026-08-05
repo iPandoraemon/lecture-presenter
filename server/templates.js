@@ -15,9 +15,13 @@ export async function loadTemplates(dir) {
         readFile(path.join(tplDir, 'style.css'), 'utf8'),
       ]);
       const meta = JSON.parse(metaRaw);
+      if (typeof meta.slots !== 'object' || meta.slots === null || Array.isArray(meta.slots)) {
+        throw new Error('meta.json 缺少有效的 slots 定义');
+      }
       templates.push({ id: entry.name, ...meta, view, style });
-    } catch {
-      // 目录不完整或 meta.json 非法,跳过
+    } catch (err) {
+      // 目录不完整、meta.json 非法或缺 slots 定义,跳过
+      console.warn(`跳过模板 ${entry.name}: ${err.message}`);
     }
   }
   return templates;

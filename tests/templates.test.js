@@ -16,6 +16,16 @@ async function makeTemplatesDir() {
   await writeFile(path.join(t, 'view.html'), '<h2>{{title}}</h2><ul>{{points}}</ul>');
   await writeFile(path.join(t, 'style.css'), '.demo{color:red}');
   await mkdir(path.join(dir, 'incomplete')); // 缺文件,应被跳过
+  const noslots = path.join(dir, 'noslots');
+  await mkdir(noslots);
+  await writeFile(path.join(noslots, 'meta.json'), JSON.stringify({ name: '无槽位' }));
+  await writeFile(path.join(noslots, 'view.html'), '<h2>x</h2>');
+  await writeFile(path.join(noslots, 'style.css'), '.x{}');
+  const badjson = path.join(dir, 'badjson');
+  await mkdir(badjson);
+  await writeFile(path.join(badjson, 'meta.json'), '{invalid json');
+  await writeFile(path.join(badjson, 'view.html'), '<h2>x</h2>');
+  await writeFile(path.join(badjson, 'style.css'), '.x{}');
   return dir;
 }
 
@@ -27,6 +37,12 @@ test('loadTemplates 扫描目录并跳过不完整模板', async () => {
   assert.equal(templates[0].name, '演示');
   assert.ok(templates[0].view.includes('{{title}}'));
   assert.ok(templates[0].style.includes('color:red'));
+});
+
+test('loadTemplates 跳过缺 slots 定义和 meta.json 非法的模板', async () => {
+  const dir = await makeTemplatesDir();
+  const templates = await loadTemplates(dir);
+  assert.deepEqual(templates.map((t) => t.id), ['demo']);
 });
 
 test('validateSlots 截断超长列表并填充默认值', () => {
