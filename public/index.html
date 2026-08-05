@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lecture Presenter</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/white.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="layout">
+    <div id="slide-pane">
+      <div class="reveal">
+        <div class="slides">
+          <section data-markdown="/slides/demo.md"
+                   data-separator="^\n---\n$"
+                   data-separator-notes="^Note:"></section>
+        </div>
+      </div>
+    </div>
+    <div id="chat-pane">
+      <div id="chat-header">
+        <select id="agent-select"></select>
+        <span id="agent-status" class="dot"></span>
+      </div>
+      <div id="chat-log"></div>
+      <div id="chat-input-row">
+        <input id="chat-input" type="text" placeholder="向 AI 助教提问…" autocomplete="off" />
+        <button id="chat-send">发送</button>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/plugin/markdown/markdown.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
