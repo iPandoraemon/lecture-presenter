@@ -50,3 +50,22 @@ test('POST /api/ask 未知 agent 返回 400', async () => {
   });
   assert.equal(res.status, 400);
 });
+
+test('POST /api/ask agent 无有效模板时纯文本兜底(无 slide)', async () => {
+  const res = await fetch(`${base}/api/ask`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent: 'mock-text', question: '测试问题', slideContext: '' }),
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.answer, '这是一段纯文本回答');
+  assert.equal(data.slide, undefined);
+});
+
+test('POST /api/ask question 非字符串返回 400', async () => {
+  const res = await fetch(`${base}/api/ask`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent: 'mock', question: 123 }),
+  });
+  assert.equal(res.status, 400);
+});

@@ -16,26 +16,39 @@ export function createApp() {
   app.use('/slides', express.static(path.join(ROOT, 'slides')));
 
   app.get('/api/templates', async (req, res) => {
-    const templates = await loadTemplates(path.join(ROOT, 'templates'));
-    res.json(templates.map(({ id, name, description }) => ({ id, name, description })));
+    try {
+      const templates = await loadTemplates(path.join(ROOT, 'templates'));
+      res.json(templates.map(({ id, name, description }) => ({ id, name, description })));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   app.get('/api/agents', async (req, res) => {
-    const agents = await loadAgents(path.join(ROOT, 'config', 'agents.json'));
-    res.json(Object.entries(agents).map(([id, a]) => ({ id, enabled: a.enabled !== false })));
+    try {
+      const agents = await loadAgents(path.join(ROOT, 'config', 'agents.json'));
+      res.json(Object.entries(agents).map(([id, a]) => ({ id, enabled: a.enabled !== false })));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   app.post('/api/ask', async (req, res) => {
     const { agent, question, slideContext } = req.body ?? {};
-    if (!agent || !question) {
+    if (typeof agent !== 'string' || !agent || typeof question !== 'string' || !question) {
       return res.status(400).json({ error: '缺少 agent 或 question' });
     }
+    let agents;
     try {
-      const agents = await loadAgents(path.join(ROOT, 'config', 'agents.json'));
-      const cfg = agents[agent];
-      if (!cfg || cfg.enabled === false) {
-        return res.status(400).json({ error: `agent "${agent}" 不可用` });
-      }
+      agents = await loadAgents(path.join(ROOT, 'config', 'agents.json'));
+    } catch (err) {
+      return res.status(500).json({ error: `配置加载失败: ${err.message}` });
+    }
+    const cfg = agents[agent];
+    if (!cfg || cfg.enabled === false) {
+      return res.status(400).json({ error: `agent "${agent}" 不可用` });
+    }
+    try {
       const templates = await loadTemplates(path.join(ROOT, 'templates'));
       const prompt = buildPrompt({ question, slideContext: slideContext ?? '', templates });
       const stdout = await runAgent(cfg, prompt);
