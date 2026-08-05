@@ -1,0 +1,9 @@
+{
+  "name": "代码讲解",
+  "description": "代码类问题:一段代码加逐条解释",
+  "slots": {
+    "title": { "type": "text" },
+    "code": { "type": "text" },
+    "explanations": { "type": "list", "maxItems": 6 }
+  }
+}

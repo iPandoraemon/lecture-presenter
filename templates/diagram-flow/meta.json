@@ -1,0 +1,8 @@
+{
+  "name": "流程图",
+  "description": "流程/原理类问题:3~5 个按顺序的步骤",
+  "slots": {
+    "title": { "type": "text" },
+    "steps": { "type": "list", "maxItems": 5 }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "要点卡片",
+  "description": "概念讲解类问题:一个标题加 3~6 个要点",
+  "slots": {
+    "title": { "type": "text" },
+    "points": { "type": "list", "maxItems": 6 }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "双栏对比",
+  "description": "A vs B 对比类问题:两个对象各自的要点对照",
+  "slots": {
+    "title": { "type": "text" },
+    "leftTitle": { "type": "text" },
+    "leftPoints": { "type": "list", "maxItems": 6 },
+    "rightTitle": { "type": "text" },
+    "rightPoints": { "type": "list", "maxItems": 6 }
+  }
+}

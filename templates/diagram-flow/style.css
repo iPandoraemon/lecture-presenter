@@ -1,0 +1,12 @@
+.tpl-diagram-flow .flow-list {
+  list-style: none; padding: 0; display: flex; flex-direction: column;
+  align-items: center; gap: 0.9em;
+}
+.tpl-diagram-flow .flow-list li {
+  background: #f5f3ff; border: 2px solid #8b5cf6; border-radius: 999px;
+  padding: 0.35em 1.4em; font-size: 0.85em; position: relative;
+}
+.tpl-diagram-flow .flow-list li:not(:last-child)::after {
+  content: '▼'; position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: -1.05em; color: #8b5cf6; font-size: 0.8em;
+}

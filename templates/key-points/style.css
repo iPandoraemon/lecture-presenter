@@ -1,0 +1,6 @@
+.tpl-key-points h2 { margin-bottom: 0.6em; }
+.tpl-key-points .kp-list { list-style: none; padding: 0; display: grid; gap: 0.4em; }
+.tpl-key-points .kp-list li {
+  background: #eef4ff; border-left: 6px solid #3b82f6; border-radius: 8px;
+  padding: 0.4em 0.8em; font-size: 0.85em; text-align: left;
+}
