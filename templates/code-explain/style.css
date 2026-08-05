@@ -3,8 +3,12 @@
   padding: 0.6em 0.9em; text-align: left; font-size: 0.7em;
   white-space: pre-wrap; margin: 0 0 0.6em;
 }
-.tpl-code-explain .ce-list { padding-left: 1.2em; display: grid; gap: 0.3em; }
+/* grid 会块化 li 并抑制 ::marker,改用 CSS 计数器编号 */
+.tpl-code-explain .ce-list { list-style: none; padding-left: 0; display: grid; gap: 0.3em; counter-reset: ce; }
 .tpl-code-explain .ce-list li {
   background: #f0fdf4; border-left: 6px solid #22c55e; border-radius: 8px;
   padding: 0.3em 0.7em; font-size: 0.8em; text-align: left;
+}
+.tpl-code-explain .ce-list li::before {
+  counter-increment: ce; content: counter(ce) ". "; font-weight: bold;
 }

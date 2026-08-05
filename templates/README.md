@@ -28,6 +28,11 @@ templates/<模板id>/
 - `type: "list"` — 字符串数组,渲染为 `<li>` 序列替换占位符,view 中应放在 `<ul>`/`<ol>` 内
 - `maxItems` 可省略(不限),超出会被截断
 
+## 加载器契约
+
+- `slots` 为必填(可以是空对象 `{}`);meta.json 非法 JSON 或缺少有效 slots 时,该模板会被跳过并在服务端控制台告警。
+- view.html 中的每个 `{{占位符}}` 都必须在 meta.json 的 slots 中声明,否则会以字面 `{{占位符}}` 残留显示。
+
 ## 调试
 
 - `GET /api/templates` 查看当前已注册模板
