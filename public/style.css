@@ -10,10 +10,11 @@ html, body { height: 100%; margin: 0; }
   border: 1px solid #ccc; border-radius: 8px;
   background: #ffffffd9; color: #333;
 }
-#deck-custom {
+#deck-custom, .deck-btn {
   padding: 4px 10px; font-size: 13px; cursor: pointer;
   border: 1px solid #ccc; border-radius: 8px;
   background: #ffffffd9; color: #333;
+  white-space: nowrap;
 }
 #slide-pane .reveal { position: absolute; inset: 0; }
 #chat-pane {
@@ -111,4 +112,33 @@ html, body { height: 100%; margin: 0; }
 /* 图片:按溢出边自动等比缩放(宽高出界哪边按哪边缩),不超出 4:3 幻灯片安全区 */
 .reveal .slides section img {
   max-width: 100%; max-height: 550px; object-fit: contain;
+}
+/* Obsidian 风格 callout 块 */
+.reveal .callout {
+  border-radius: 8px; padding: 0.4em 0.9em; margin: 0.5em 0;
+  text-align: left; font-size: 0.8em;
+  background: #f8fafc; border-left: 6px solid #64748b;
+}
+.reveal .callout-title { font-weight: 700; margin-bottom: 0.15em; }
+.reveal .callout-body p { margin: 0.2em 0; }
+.reveal .callout-question { background: #fffbeb; border-color: #f59e0b; }
+.reveal .callout-question .callout-title { color: #b45309; }
+.reveal .callout-note, .reveal .callout-info { background: #eff6ff; border-color: #3b82f6; }
+.reveal .callout-note .callout-title, .reveal .callout-info .callout-title { color: #1d4ed8; }
+.reveal .callout-tip { background: #f0fdf4; border-color: #22c55e; }
+.reveal .callout-tip .callout-title { color: #15803d; }
+.reveal .callout-warning, .reveal .callout-important { background: #fef2f2; border-color: #ef4444; }
+.reveal .callout-warning .callout-title, .reveal .callout-important .callout-title { color: #b91c1c; }
+.reveal .callout-example { background: #f5f3ff; border-color: #8b5cf6; }
+.reveal .callout-example .callout-title { color: #6d28d9; }
+.reveal .callout-quote { background: #f8fafc; border-color: #94a3b8; }
+
+/* ===== 打印/导出 PDF ===== */
+@media print {
+  #chat-pane, #deck-bar { display: none !important; }
+  /* 打印时恢复静态流式布局,reveal 才能按页分页 */
+  #layout, #slide-pane { display: block !important; height: auto !important; }
+  #slide-pane .reveal { position: static !important; }
+  /* 打印时表格完整展开,不再裁剪 */
+  .reveal .table-scroll { max-height: none !important; overflow: visible !important; }
 }

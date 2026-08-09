@@ -26,11 +26,68 @@ export function applyLayouts(globalCfg = {}) {
     const titlePos = section.dataset.title ?? globalCfg['title-position'];
     if (titlePos === 'top-left') section.classList.add('title-top-left');
     section.style.padding = padding;
+    processCallouts(section);
     wrapTables(section);
     const layout = section.dataset.layout ?? globalCfg.layout;
     if (layout === 'cols') {
       applyCols(section, section.dataset.ratio ?? globalCfg.ratio);
     }
+  }
+}
+
+// Obsidian 风格 callout:
+//   > [!question] 可选标题
+//   > 内容...
+// 渲染为带类型配色的提示框;支持的类型见 CALLOUT_TITLES,未知类型用默认样式
+const CALLOUT_TITLES = {
+  question: '问题', note: '备注', tip: '提示', warning: '警告',
+  example: '示例', important: '重要', info: '信息', quote: '引用',
+};
+
+function processCallouts(section) {
+  for (const bq of [...section.querySelectorAll('blockquote')]) {
+    const first = bq.firstElementChild;
+    if (!first || first.tagName !== 'P') continue;
+    // 标题止于换行(\n 或 <br>),贪婪匹配;剩余行为正文
+    const m = first.innerHTML.match(/^\[!([\w-]+)\][ \t]*([^\n<]*)(?:<br\s*\/?>|\n)?/);
+    if (!m) continue;
+    const type = m[1].toLowerCase();
+    const title = (m[2] ?? '').trim();
+    // 去掉标记行,剩余内容移入 callout body
+    first.innerHTML = first.innerHTML.slice(m[0].length).trim();
+    const box = document.createElement('div');
+    box.className = `callout callout-${type}`;
+    const head = document.createElement('div');
+    head.className = 'callout-title';
+    head.textContent = title || (CALLOUT_TITLES[type] ?? type);
+    box.appendChild(head);
+    const body = document.createElement('div');
+    body.className = 'callout-body';
+    if (first.innerHTML) body.appendChild(first);
+    while (bq.firstElementChild) body.appendChild(bq.firstElementChild);
+    newlinesToBr(body);
+    if (body.childElementCount || body.textContent.trim()) box.appendChild(body);
+    bq.replaceWith(box);
+  }
+}
+
+// 把文本节点中的 \n 换成 <br>(callout 内逐行显示,匹配 Obsidian 习惯);
+// 跳过 pre/code,避免破坏代码块的换行
+function newlinesToBr(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const targets = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.parentElement.closest('pre, code')) continue;
+    if (node.nodeValue.includes('\n')) targets.push(node);
+  }
+  for (const t of targets) {
+    const frag = document.createDocumentFragment();
+    t.nodeValue.split('\n').forEach((part, i) => {
+      if (i > 0) frag.appendChild(document.createElement('br'));
+      frag.appendChild(document.createTextNode(part));
+    });
+    t.replaceWith(frag);
   }
 }
 

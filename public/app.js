@@ -43,9 +43,19 @@ const deck = new Reveal({
   height: 720,
   plugins: [RevealMarkdown],
 });
-deck.initialize().then(() => {
+
+// print-pdf 模式:打印完毕后自动唤起打印对话框(图片加载完成后)
+const printMode = /print-pdf/gi.test(location.search);
+
+deck.initialize().then(async () => {
   applyGlobalFonts(globalCfg);
   applyLayouts(globalCfg);
+  if (printMode) {
+    await Promise.all(
+      [...document.images].map((img) => img.decode().catch(() => {})),
+    );
+    window.print();
+  }
 });
 
 const chatLog = document.getElementById('chat-log');
@@ -196,6 +206,41 @@ document.getElementById('deck-custom').addEventListener('click', () => {
   }
 });
 
+// 导出 PDF:打开 print-pdf 模式新窗口,自动唤起打印(含 AI 动态幻灯片)
+document.getElementById('export-pdf').addEventListener('click', () => {
+  const url = new URL(location.href);
+  url.searchParams.set('print-pdf', '');
+  window.open(url, '_blank');
+});
+
+// 问答记录(供导出 Markdown)
+const qaLog = [];
+
+// 导出问答 Markdown:问题 + AI 回答 + 生成的模板
+document.getElementById('export-qa').addEventListener('click', () => {
+  if (!qaLog.length) {
+    appendBubble('ai error', '还没有问答记录,先提几个问题吧');
+    return;
+  }
+  const lines = [
+    '# 课堂问答记录',
+    '',
+    `- 课件: ${currentDeck}`,
+    `- 导出时间: ${new Date().toLocaleString()}`,
+    '',
+  ];
+  qaLog.forEach((q, i) => {
+    lines.push(`## Q${i + 1}:${q.question}`, '', q.answer, '');
+    if (q.template) lines.push(`> 生成的幻灯片模板: \`${q.template}\``, '');
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `问答记录-${currentDeck.replace(/\.md$/, '').replace(/[^\w一-龥-]+/g, '_')}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
 async function loadAgents() {
   try {
     const res = await fetch('/api/agents');
@@ -268,6 +313,11 @@ async function send() {
       appendBubble('ai error', data.error ?? '请求失败');
     } else {
       appendBubble('ai', data.answer ?? '');
+      qaLog.push({
+        question,
+        answer: data.answer ?? '',
+        template: data.slide?.templateId,
+      });
       if (data.slide) insertDynamicSlide(data.slide);
     }
   } catch (err) {

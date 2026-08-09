@@ -6,13 +6,24 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/white.css" />
   <link rel="stylesheet" href="/style.css" />
+  <script>
+    // reveal 官方 print-pdf 模式:?print-pdf 时加载打印分页样式
+    if (window.location.search.match(/print-pdf/gi)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/print/pdf.css';
+      document.head.appendChild(link);
+    }
+  </script>
 </head>
 <body>
   <div id="layout">
     <div id="slide-pane">
       <div id="deck-bar">
         <select id="deck-select" title="选择课件"></select>
-        <button id="deck-custom" title="指定 slides/ 之外的课件路径">…</button>
+        <button id="deck-custom" class="deck-btn" title="指定 slides/ 之外的课件路径">…</button>
+        <button id="export-pdf" class="deck-btn" title="导出全部幻灯片为 PDF(含 AI 生成页)">⤓ PDF</button>
+        <button id="export-qa" class="deck-btn" title="导出本次问答记录为 Markdown">⤓ 问答</button>
       </div>
       <div class="reveal">
         <div class="slides">
