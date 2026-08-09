@@ -48,6 +48,24 @@ export function createApp(options = {}) {
     }
   });
 
+  // 外部课件的图片资源:仅允许常见图片扩展名
+  const MEDIA_TYPES = {
+    '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp',
+  };
+  app.get('/api/media', async (req, res) => {
+    const p = req.query.path;
+    const type = typeof p === 'string' && MEDIA_TYPES[path.extname(p).toLowerCase()];
+    if (!type || !path.isAbsolute(p)) {
+      return res.status(400).json({ error: '需要图片文件的绝对路径(png/jpg/gif/svg/webp)' });
+    }
+    try {
+      res.type(type).send(await readFile(p));
+    } catch {
+      res.status(404).json({ error: '文件不存在或不可读' });
+    }
+  });
+
   app.get('/api/templates', async (req, res) => {
     try {
       const templates = await loadTemplates(path.join(ROOT, 'templates'));

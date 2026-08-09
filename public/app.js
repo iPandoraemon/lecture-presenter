@@ -1,4 +1,7 @@
 /* global Reveal, RevealMarkdown */
+import { parseDeckFrontmatter, rewriteImageUrls } from '/frontmatter.js';
+import { applyLayouts, applyGlobalFonts } from '/layouts.js';
+
 // 课件由 ?deck= 指定:不含 '/' 时视为 slides/ 下的文件名,否则视为绝对路径走 /api/deck
 const params = new URLSearchParams(location.search);
 const currentDeck = params.get('deck') ?? 'demo.md';
@@ -6,11 +9,44 @@ const isCustomPath = currentDeck.includes('/');
 const deckUrl = isCustomPath
   ? `/api/deck?path=${encodeURIComponent(currentDeck)}`
   : `/slides/${currentDeck}`;
-// 须在 initialize 之前设置 data-markdown
-document.getElementById('deck-section').setAttribute('data-markdown', deckUrl);
+// 相对路径图片的重写规则:slides/ 内课件走静态目录,外部课件走 /api/media
+const resolveImage = isCustomPath
+  ? (src) => {
+      const dir = currentDeck.slice(0, currentDeck.lastIndexOf('/'));
+      return `/api/media?path=${encodeURIComponent(`${dir}/${src}`)}`;
+    }
+  : (src) => `/slides/${encodeURI(src)}`;
 
-const deck = new Reveal({ hash: false, transition: 'slide', plugins: [RevealMarkdown] });
-deck.initialize();
+// 自己 fetch 课件:剥离 YAML 头(全局版式配置)、重写图片路径,再以 script template 嵌入交给 reveal
+const deckSection = document.getElementById('deck-section');
+let globalCfg = {};
+try {
+  const res = await fetch(deckUrl);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const parsed = parseDeckFrontmatter(await res.text());
+  globalCfg = parsed.meta;
+  deckSection.setAttribute('data-markdown', '');
+  const tpl = document.createElement('script');
+  tpl.type = 'text/template';
+  tpl.textContent = rewriteImageUrls(parsed.body, resolveImage);
+  deckSection.appendChild(tpl);
+} catch (err) {
+  deckSection.removeAttribute('data-markdown');
+  deckSection.innerHTML = `<h2>课件加载失败</h2><p>${currentDeck}: ${err.message}</p>`;
+}
+
+const deck = new Reveal({
+  hash: false,
+  transition: 'slide',
+  // 4:3 幻灯片;配合左右 12:4 分栏,16:9 屏幕上恰好填满左栏
+  width: 960,
+  height: 720,
+  plugins: [RevealMarkdown],
+});
+deck.initialize().then(() => {
+  applyGlobalFonts(globalCfg);
+  applyLayouts(globalCfg);
+});
 
 const chatLog = document.getElementById('chat-log');
 const chatInput = document.getElementById('chat-input');

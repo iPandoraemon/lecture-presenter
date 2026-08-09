@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { createApp, ROOT } from '../server/app.js';
 
@@ -117,6 +117,24 @@ test('GET /api/deck 拒绝相对路径', async () => {
 
 test('GET /api/deck 文件不存在返回 404', async () => {
   const res = await fetch(`${base}/api/deck?path=${encodeURIComponent('/tmp/definitely-not-exist-xyz.md')}`);
+  assert.equal(res.status, 404);
+});
+
+test('GET /api/media 返回图片文件', async () => {
+  const img = path.join(provDir, 'pic.png');
+  await writeFile(img, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  const res = await fetch(`${base}/api/media?path=${encodeURIComponent(img)}`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('content-type'), 'image/png');
+});
+
+test('GET /api/media 拒绝非图片扩展名', async () => {
+  const res = await fetch(`${base}/api/media?path=${encodeURIComponent(path.join(ROOT, 'package.json'))}`);
+  assert.equal(res.status, 400);
+});
+
+test('GET /api/media 文件不存在返回 404', async () => {
+  const res = await fetch(`${base}/api/media?path=${encodeURIComponent('/tmp/no-such-pic-xyz.png')}`);
   assert.equal(res.status, 404);
 });
 
