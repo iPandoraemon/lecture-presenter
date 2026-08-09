@@ -1,6 +1,6 @@
 # Lecture Presenter
 
-课堂演示工具:左侧 Markdown 课件(reveal.js),右侧对话框连接 CLI Agent(Claude Code / Kimi 等)。提问后 Agent 选择预置模板并填入内容,渲染为动态幻灯片插入课件。
+课堂演示工具:左侧 Markdown 课件(reveal.js),右侧对话框连接 CLI Agent(Claude Code / Kimi / OpenCode / Pi 等)。提问后 Agent 选择预置模板并填入内容,渲染为动态幻灯片插入课件。
 
 ## 快速开始
 
