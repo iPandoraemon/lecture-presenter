@@ -82,6 +82,8 @@ html, body { height: 100%; margin: 0; }
 }
 
 /* ===== 课件版式(layouts.js)===== */
+/* section 加 padding 后必须 border-box,否则 100% 宽度 + padding 会向右溢出幻灯片 */
+.reveal .slides section { box-sizing: border-box; }
 /* 标题左上:覆盖 reveal 的垂直居中与标题居中 */
 .reveal .slides section.title-top-left {
   top: 0 !important; height: 100%; text-align: left;
