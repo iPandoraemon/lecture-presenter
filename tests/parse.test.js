@@ -29,3 +29,12 @@ test('非法 JSON 兜底为原文', () => {
   const out = parseAgentOutput('{broken json}');
   assert.equal(out.answer, '{broken json}');
 });
+
+test('answer 误嵌套在 slots 内时提升为根级字段', () => {
+  const out = parseAgentOutput(
+    '{"template":"key-points","slots":{"title":"t","points":["a"],"answer":"嵌套回答"}}',
+  );
+  assert.equal(out.template, 'key-points');
+  assert.equal(out.answer, '嵌套回答');
+  assert.deepEqual(out.slots, { title: 't', points: ['a'] });
+});

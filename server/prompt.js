@@ -22,6 +22,7 @@ ${tplList}
 要求:
 1. 只输出一个 JSON 对象,不要输出任何其他文字、解释或 markdown 代码块标记。
 2. JSON 格式: {"template": "<模板id>", "slots": {<各槽位内容>}, "answer": "<一两句话的文字回答>"}
+   注意: answer 必须与 template、slots 同级,绝不能放进 slots 里面。
 3. slots 的键必须与所选模板的槽位完全一致,list 类型槽位用字符串数组。
 4. 内容用中文,简洁,适合课堂投影展示。`;
 }

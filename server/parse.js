@@ -5,12 +5,19 @@ export function parseAgentOutput(stdout) {
   if (!match) return { answer: text };
   try {
     const obj = JSON.parse(match[0]);
-    if (typeof obj.answer !== 'string' || !obj.answer) return { answer: text };
+    const slots = (obj.slots && typeof obj.slots === 'object' && !Array.isArray(obj.slots))
+      ? { ...obj.slots }
+      : {};
+    // 容错:模型有时把 answer 误嵌进 slots,提升为根级
+    const answer = (typeof obj.answer === 'string' && obj.answer)
+      || (typeof slots.answer === 'string' && slots.answer)
+      || null;
+    if (!answer) return { answer: text };
+    delete slots.answer;
     if (typeof obj.template === 'string') {
-      const slots = (obj.slots && typeof obj.slots === 'object' && !Array.isArray(obj.slots)) ? obj.slots : {};
-      return { template: obj.template, slots, answer: obj.answer };
+      return { template: obj.template, slots, answer };
     }
-    return { answer: obj.answer };
+    return { answer };
   } catch {
     return { answer: text };
   }
