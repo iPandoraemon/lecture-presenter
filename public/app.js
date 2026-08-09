@@ -1,4 +1,14 @@
 /* global Reveal, RevealMarkdown */
+// 课件由 ?deck= 指定:不含 '/' 时视为 slides/ 下的文件名,否则视为绝对路径走 /api/deck
+const params = new URLSearchParams(location.search);
+const currentDeck = params.get('deck') ?? 'demo.md';
+const isCustomPath = currentDeck.includes('/');
+const deckUrl = isCustomPath
+  ? `/api/deck?path=${encodeURIComponent(currentDeck)}`
+  : `/slides/${currentDeck}`;
+// 须在 initialize 之前设置 data-markdown
+document.getElementById('deck-section').setAttribute('data-markdown', deckUrl);
+
 const deck = new Reveal({ hash: false, transition: 'slide', plugins: [RevealMarkdown] });
 deck.initialize();
 
@@ -7,6 +17,49 @@ const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('chat-send');
 const agentSelect = document.getElementById('agent-select');
 const statusDot = document.getElementById('agent-status');
+const deckSelect = document.getElementById('deck-select');
+
+async function loadDecks() {
+  try {
+    const res = await fetch('/api/slides');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const decks = await res.json();
+    for (const d of decks) {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d.replace(/\.md$/, '');
+      opt.selected = d === currentDeck;
+      deckSelect.appendChild(opt);
+    }
+    if (isCustomPath) {
+      // 当前课件是 slides/ 之外的路径,在下拉框中显示出来
+      const opt = document.createElement('option');
+      opt.value = currentDeck;
+      opt.textContent = currentDeck.split('/').pop();
+      opt.selected = true;
+      deckSelect.appendChild(opt);
+    }
+  } catch (err) {
+    // 课件列表加载失败不影响演示,仅隐藏选择器
+    deckSelect.style.display = 'none';
+    console.warn('课件列表加载失败:', err);
+  }
+}
+loadDecks();
+
+deckSelect.addEventListener('change', () => {
+  location.search = `?deck=${encodeURIComponent(deckSelect.value)}`;
+});
+// 阻止方向键/空格泄漏给 reveal.js 翻页
+deckSelect.addEventListener('keydown', (e) => e.stopPropagation());
+
+// 指定 slides/ 之外的课件绝对路径
+document.getElementById('deck-custom').addEventListener('click', () => {
+  const p = window.prompt('输入课件文件的完整路径(.md):', isCustomPath ? currentDeck : '');
+  if (p && p.trim()) {
+    location.search = `?deck=${encodeURIComponent(p.trim())}`;
+  }
+});
 
 async function loadAgents() {
   try {

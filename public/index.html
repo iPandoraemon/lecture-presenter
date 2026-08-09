@@ -10,9 +10,14 @@
 <body>
   <div id="layout">
     <div id="slide-pane">
+      <div id="deck-bar">
+        <select id="deck-select" title="选择课件"></select>
+        <button id="deck-custom" title="指定 slides/ 之外的课件路径">…</button>
+      </div>
       <div class="reveal">
         <div class="slides">
-          <section data-markdown="/slides/demo.md"
+          <section id="deck-section"
+                   data-markdown="/slides/demo.md"
                    data-separator="^\n---\n$"
                    data-separator-notes="^Note:"></section>
         </div>

@@ -11,7 +11,10 @@ npm start          # http://localhost:3000
 
 ## 使用
 
-- 课件放在 `slides/`,Markdown 格式,`---` 分页;修改 `public/index.html` 中的 `data-markdown` 路径切换课件
+- 课件放在 `slides/`,Markdown 格式,`---` 分页
+- 点击页面左上角的下拉框切换课件(自动列出 `slides/` 下所有 .md 文件);也可用 URL 参数直接指定:`http://localhost:3000/?deck=my-course.md`
+- 课件也可以在 `slides/` 之外:点下拉框旁的 `…` 按钮输入 .md 文件的完整路径,或直接用 URL 参数:`http://localhost:3000/?deck=/Users/you/course/lesson1.md`
+- 新增/替换 `slides/` 里的文件后,刷新页面或重新打开下拉框即可看到,无需重启
 - 右栏下拉框选择 agent,输入问题,Enter 发送
 - AI 生成的内容会作为新幻灯片插入当前页之后,按 ← 返回
 

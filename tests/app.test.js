@@ -1,6 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../server/app.js';
+import path from 'node:path';
+import { createApp, ROOT } from '../server/app.js';
 
 let server, base;
 before(async () => {
@@ -21,6 +22,37 @@ test('GET /api/agents 返回 agent 列表', async () => {
   const res = await fetch(`${base}/api/agents`);
   const list = await res.json();
   assert.ok(list.some((a) => a.id === 'mock'));
+});
+
+test('GET /api/slides 返回 slides 目录下的 .md 课件列表', async () => {
+  const res = await fetch(`${base}/api/slides`);
+  assert.equal(res.status, 200);
+  const list = await res.json();
+  assert.ok(Array.isArray(list));
+  assert.ok(list.includes('demo.md'));
+  assert.ok(list.every((f) => f.endsWith('.md')));
+});
+
+test('GET /api/deck 按绝对路径返回 .md 课件内容', async () => {
+  const res = await fetch(`${base}/api/deck?path=${encodeURIComponent(path.join(ROOT, 'slides', 'demo.md'))}`);
+  assert.equal(res.status, 200);
+  const text = await res.text();
+  assert.ok(text.includes('示例课程'));
+});
+
+test('GET /api/deck 拒绝非 .md 文件', async () => {
+  const res = await fetch(`${base}/api/deck?path=${encodeURIComponent(path.join(ROOT, 'package.json'))}`);
+  assert.equal(res.status, 400);
+});
+
+test('GET /api/deck 拒绝相对路径', async () => {
+  const res = await fetch(`${base}/api/deck?path=${encodeURIComponent('slides/demo.md')}`);
+  assert.equal(res.status, 400);
+});
+
+test('GET /api/deck 文件不存在返回 404', async () => {
+  const res = await fetch(`${base}/api/deck?path=${encodeURIComponent('/tmp/definitely-not-exist-xyz.md')}`);
+  assert.equal(res.status, 404);
 });
 
 test('POST /api/ask 用 mock agent 返回 answer 与渲染后的 slide', async () => {

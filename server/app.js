@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readdir, readFile } from 'node:fs/promises';
 import { loadAgents, runAgent } from './agents.js';
 import { loadTemplates, validateSlots, renderTemplate } from './templates.js';
 import { parseAgentOutput } from './parse.js';
@@ -14,6 +15,29 @@ export function createApp() {
   app.use(express.json());
   app.use(express.static(path.join(ROOT, 'public')));
   app.use('/slides', express.static(path.join(ROOT, 'slides')));
+
+  app.get('/api/slides', async (req, res) => {
+    try {
+      const files = await readdir(path.join(ROOT, 'slides'));
+      res.json(files.filter((f) => f.endsWith('.md')).sort());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 按绝对路径读取 slides/ 之外的 .md 课件(仅允许 .md,防止任意文件泄露)
+  app.get('/api/deck', async (req, res) => {
+    const p = req.query.path;
+    if (typeof p !== 'string' || !path.isAbsolute(p) || !p.endsWith('.md')) {
+      return res.status(400).json({ error: '需要 .md 文件的绝对路径' });
+    }
+    try {
+      const content = await readFile(p, 'utf8');
+      res.type('text/markdown').send(content);
+    } catch {
+      res.status(404).json({ error: '文件不存在或不可读' });
+    }
+  });
 
   app.get('/api/templates', async (req, res) => {
     try {
