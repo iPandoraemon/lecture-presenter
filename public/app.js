@@ -206,11 +206,34 @@ document.getElementById('deck-custom').addEventListener('click', () => {
   }
 });
 
-// 导出 PDF:打开 print-pdf 模式新窗口,自动唤起打印(含 AI 动态幻灯片)
-document.getElementById('export-pdf').addEventListener('click', () => {
-  const url = new URL(location.href);
-  url.searchParams.set('print-pdf', '');
-  window.open(url, '_blank');
+// 导出 PDF:在当前页面注入 reveal 打印样式并唤起打印——不能用新窗口,
+// 否则本次会话的 AI 动态幻灯片(只存在于当前 DOM)会丢失
+async function exportPdf() {
+  if (!document.getElementById('reveal-pdf-css')) {
+    const link = document.createElement('link');
+    link.id = 'reveal-pdf-css';
+    link.rel = 'stylesheet';
+    link.href = 'https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/print/pdf.css';
+    document.head.appendChild(link);
+    await new Promise((r) => { link.onload = r; link.onerror = r; });
+  }
+  window.print();
+}
+
+// 打印结束(或取消)后移除打印样式,恢复屏幕视图
+window.addEventListener('afterprint', () => {
+  document.getElementById('reveal-pdf-css')?.remove();
+});
+
+document.getElementById('export-pdf').addEventListener('click', exportPdf);
+
+// 对话栏收放:收起后幻灯片从 4:3(960x720)切换为 16:9(1280x720)
+document.getElementById('chat-toggle').addEventListener('click', (e) => {
+  const collapsed = document.body.classList.toggle('chat-collapsed');
+  e.currentTarget.textContent = collapsed ? '«' : '»';
+  e.currentTarget.title = collapsed ? '展开对话栏' : '收起对话栏';
+  deck.configure(collapsed ? { width: 1280, height: 720 } : { width: 960, height: 720 });
+  deck.layout();
 });
 
 // 问答记录(供导出 Markdown)
@@ -230,8 +253,10 @@ document.getElementById('export-qa').addEventListener('click', () => {
     '',
   ];
   qaLog.forEach((q, i) => {
-    lines.push(`## Q${i + 1}:${q.question}`, '', q.answer, '');
-    if (q.template) lines.push(`> 生成的幻灯片模板: \`${q.template}\``, '');
+    lines.push(`## Q${i + 1}:${q.question}`, '', `**回答:** ${q.answer}`, '');
+    if (q.slideContent) {
+      lines.push(`**生成的幻灯片${q.template ? `(${q.template})` : ''}:**`, '', '```', q.slideContent, '```', '');
+    }
   });
   const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
   const a = document.createElement('a');
@@ -267,6 +292,17 @@ function appendBubble(role, text) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+// 把渲染后的模板正文提取为纯文本行(供问答导出)
+function slideToText(body) {
+  const lines = [];
+  for (const el of body.querySelectorAll('h1, h2, h3, li, p, pre')) {
+    const t = el.textContent.trim();
+    if (!t) continue;
+    lines.push(el.tagName === 'LI' ? `- ${t}` : t);
+  }
+  return lines.join('\n');
+}
+
 function insertDynamicSlide(slide) {
   const section = document.createElement('section');
   const style = document.createElement('style');
@@ -285,6 +321,7 @@ function insertDynamicSlide(slide) {
   else document.querySelector('.slides').appendChild(section);
   deck.sync();
   deck.next();
+  return slideToText(body);
 }
 
 let sending = false;
@@ -313,12 +350,13 @@ async function send() {
       appendBubble('ai error', data.error ?? '请求失败');
     } else {
       appendBubble('ai', data.answer ?? '');
-      qaLog.push({
+      const entry = {
         question,
         answer: data.answer ?? '',
         template: data.slide?.templateId,
-      });
-      if (data.slide) insertDynamicSlide(data.slide);
+      };
+      if (data.slide) entry.slideContent = insertDynamicSlide(data.slide);
+      qaLog.push(entry);
     }
   } catch (err) {
     appendBubble('ai error', '网络错误: ' + err.message);
