@@ -26,6 +26,8 @@
     <div id="chat-pane">
       <div id="chat-header">
         <select id="agent-select"></select>
+        <select id="provider-select" title="模型商"><option value="">默认模型商</option></select>
+        <button id="settings-btn" title="模型商设置">⚙</button>
         <span id="agent-status" class="dot"></span>
       </div>
       <div id="chat-log"></div>
@@ -33,6 +35,24 @@
         <input id="chat-input" type="text" placeholder="向 AI 助教提问…" autocomplete="off" />
         <button id="chat-send">发送</button>
       </div>
+    </div>
+  </div>
+  <div id="settings-modal" class="hidden">
+    <div id="settings-panel">
+      <h3>模型商配置</h3>
+      <div id="provider-list"></div>
+      <form id="provider-form">
+        <input name="name" placeholder="名称(如 deepseek)" required />
+        <input name="baseUrl" placeholder="API 链接(如 https://api.deepseek.com/v1)" required />
+        <input name="apiKey" placeholder="API Key(可空)" autocomplete="off" />
+        <input name="model" placeholder="模型(如 deepseek-v4-flash)" required />
+        <input name="extraArgs" placeholder="额外参数(可空,如 --thinking high)" />
+        <div class="form-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="settings-close">关闭</button>
+        </div>
+      </form>
+      <div id="settings-msg"></div>
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>

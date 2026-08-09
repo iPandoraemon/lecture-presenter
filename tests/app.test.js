@@ -1,15 +1,80 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { createApp, ROOT } from '../server/app.js';
 
-let server, base;
+let server, base, provDir;
 before(async () => {
-  server = createApp().listen(0);
+  provDir = await mkdtemp(path.join(tmpdir(), 'app-prov-'));
+  server = createApp({
+    providersPath: path.join(provDir, 'providers.json'),
+    piModelsPath: path.join(provDir, 'models.json'),
+  }).listen(0);
   await new Promise((r) => server.on('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
 after(() => server.close());
+
+const sampleProvider = {
+  name: 'test-prov',
+  baseUrl: 'https://api.example.com/v1',
+  apiKey: 'sk-x',
+  model: 'm-1',
+  extraArgs: '',
+};
+
+test('POST /api/providers 保存模型商并同步 pi models.json', async () => {
+  const res = await fetch(`${base}/api/providers`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sampleProvider),
+  });
+  assert.equal(res.status, 200);
+  const list = await (await fetch(`${base}/api/providers`)).json();
+  assert.equal(list.length, 1);
+  assert.equal(list[0].name, 'test-prov');
+  const piModels = JSON.parse(await readFile(path.join(provDir, 'models.json'), 'utf8'));
+  assert.equal(piModels.providers['test-prov'].baseUrl, 'https://api.example.com/v1');
+});
+
+test('POST /api/providers 非法配置返回 400', async () => {
+  const res = await fetch(`${base}/api/providers`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: '', baseUrl: 'x', model: '' }),
+  });
+  assert.equal(res.status, 400);
+});
+
+test('POST /api/ask 指定不存在的模型商返回 400', async () => {
+  const res = await fetch(`${base}/api/ask`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent: 'pi', provider: 'ghost', question: 'x' }),
+  });
+  assert.equal(res.status, 400);
+  const data = await res.json();
+  assert.match(data.error, /模型商/);
+});
+
+test('POST /api/ask 模型商对非 pi agent 不生效(mock 照常工作)', async () => {
+  const res = await fetch(`${base}/api/ask`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent: 'mock', provider: 'test-prov', question: 'x' }),
+  });
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.answer, '这是 mock 回答');
+});
+
+test('DELETE /api/providers/:name 删除模型商', async () => {
+  const res = await fetch(`${base}/api/providers/test-prov`, { method: 'DELETE' });
+  assert.equal(res.status, 200);
+  const list = await (await fetch(`${base}/api/providers`)).json();
+  assert.equal(list.length, 0);
+  const piModels = JSON.parse(await readFile(path.join(provDir, 'models.json'), 'utf8'));
+  assert.equal(piModels.providers['test-prov'], undefined);
+});
+
 
 test('GET /api/templates 返回 4 个内置模板', async () => {
   const res = await fetch(`${base}/api/templates`);

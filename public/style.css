@@ -26,6 +26,42 @@ html, body { height: 100%; margin: 0; }
   padding: 10px; border-bottom: 1px solid #e5e5e5;
 }
 #agent-select { flex: 1; padding: 6px; font-size: 14px; }
+#provider-select { flex: 1; padding: 6px; font-size: 14px; min-width: 0; }
+#settings-btn {
+  padding: 5px 9px; font-size: 14px; cursor: pointer;
+  border: 1px solid #ccc; border-radius: 8px; background: #fff;
+}
+#settings-modal {
+  position: fixed; inset: 0; z-index: 100;
+  background: #0006; display: flex; align-items: center; justify-content: center;
+}
+#settings-modal.hidden { display: none; }
+#settings-panel {
+  width: 420px; max-height: 80vh; overflow-y: auto;
+  background: #fff; border-radius: 12px; padding: 20px;
+  font-family: -apple-system, "PingFang SC", sans-serif; font-size: 14px;
+}
+#settings-panel h3 { margin: 0 0 12px; }
+#provider-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.provider-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid #e5e5e5; border-radius: 8px;
+}
+.provider-item .p-name { font-weight: 600; }
+.provider-item .p-meta { flex: 1; color: #666; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.provider-item button {
+  padding: 3px 8px; font-size: 12px; cursor: pointer;
+  border: 1px solid #ccc; border-radius: 6px; background: #fff;
+}
+#provider-form { display: flex; flex-direction: column; gap: 8px; }
+#provider-form input { padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 8px; }
+#provider-form .form-actions { display: flex; gap: 8px; }
+#provider-form .form-actions button {
+  padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+  background: #3b82f6; color: #fff;
+}
+#provider-form .form-actions #settings-close { background: #e5e5e5; color: #333; }
+#settings-msg { margin-top: 8px; font-size: 13px; color: #b91c1c; min-height: 1em; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; }
 .dot.busy { background: #f59e0b; animation: blink 0.8s infinite alternate; }
 @keyframes blink { to { opacity: 0.3; } }

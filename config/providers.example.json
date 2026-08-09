@@ -1,0 +1,9 @@
+[
+  {
+    "name": "deepseek",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "apiKey": "sk-在此填入你的key",
+    "model": "deepseek-v4-flash",
+    "extraArgs": "--thinking high"
+  }
+]

@@ -2,15 +2,24 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readdir, readFile } from 'node:fs/promises';
-import { loadAgents, runAgent } from './agents.js';
+import { loadAgents, runAgent, buildProviderArgs } from './agents.js';
 import { loadTemplates, validateSlots, renderTemplate } from './templates.js';
 import { parseAgentOutput } from './parse.js';
 import { buildPrompt } from './prompt.js';
+import {
+  loadProviders,
+  saveProvider,
+  deleteProvider,
+  validateProvider,
+  PI_MODELS_PATH,
+} from './providers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.join(__dirname, '..');
 
-export function createApp() {
+export function createApp(options = {}) {
+  const providersPath = options.providersPath ?? path.join(ROOT, 'config', 'providers.json');
+  const piModelsPath = options.piModelsPath ?? PI_MODELS_PATH;
   const app = express();
   app.use(express.json());
   app.use(express.static(path.join(ROOT, 'public')));
@@ -57,8 +66,33 @@ export function createApp() {
     }
   });
 
+  app.get('/api/providers', async (req, res) => {
+    res.json(await loadProviders(providersPath));
+  });
+
+  app.post('/api/providers', async (req, res) => {
+    const err = validateProvider(req.body ?? {});
+    if (err) return res.status(400).json({ error: err });
+    try {
+      const saved = await saveProvider(providersPath, req.body, piModelsPath);
+      res.json(saved);
+    } catch (e) {
+      res.status(500).json({ error: `保存失败: ${e.message}` });
+    }
+  });
+
+  app.delete('/api/providers/:name', async (req, res) => {
+    try {
+      const removed = await deleteProvider(providersPath, req.params.name, piModelsPath);
+      if (!removed) return res.status(404).json({ error: '模型商不存在' });
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: `删除失败: ${e.message}` });
+    }
+  });
+
   app.post('/api/ask', async (req, res) => {
-    const { agent, question, slideContext } = req.body ?? {};
+    const { agent, question, slideContext, provider } = req.body ?? {};
     if (typeof agent !== 'string' || !agent || typeof question !== 'string' || !question) {
       return res.status(400).json({ error: '缺少 agent 或 question' });
     }
@@ -72,10 +106,19 @@ export function createApp() {
     if (!cfg || cfg.enabled === false) {
       return res.status(400).json({ error: `agent "${agent}" 不可用` });
     }
+    // 模型商注入目前只适配 pi:由配置构造调用参数
+    let argsOverride;
+    if (agent === 'pi' && provider) {
+      const profile = (await loadProviders(providersPath)).find((p) => p.name === provider);
+      if (!profile) {
+        return res.status(400).json({ error: `模型商 "${provider}" 不存在` });
+      }
+      argsOverride = buildProviderArgs(profile);
+    }
     try {
       const templates = await loadTemplates(path.join(ROOT, 'templates'));
       const prompt = buildPrompt({ question, slideContext: slideContext ?? '', templates });
-      const stdout = await runAgent(cfg, prompt);
+      const stdout = await runAgent(cfg, prompt, argsOverride);
       const parsed = parseAgentOutput(stdout);
       const tpl = parsed.template && templates.find((t) => t.id === parsed.template);
       if (!tpl) {

@@ -16,8 +16,107 @@ const chatLog = document.getElementById('chat-log');
 const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('chat-send');
 const agentSelect = document.getElementById('agent-select');
+const providerSelect = document.getElementById('provider-select');
 const statusDot = document.getElementById('agent-status');
 const deckSelect = document.getElementById('deck-select');
+const settingsModal = document.getElementById('settings-modal');
+const providerList = document.getElementById('provider-list');
+const providerForm = document.getElementById('provider-form');
+const settingsMsg = document.getElementById('settings-msg');
+
+// 模型商下拉框:默认 + 已保存的模型商
+async function loadProviders() {
+  try {
+    const res = await fetch('/api/providers');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const providers = await res.json();
+    const current = providerSelect.value;
+    providerSelect.innerHTML = '<option value="">默认模型商</option>';
+    for (const p of providers) {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.textContent = `${p.name} (${p.model})`;
+      providerSelect.appendChild(opt);
+    }
+    providerSelect.value = current;
+  } catch (err) {
+    console.warn('模型商列表加载失败:', err);
+  }
+}
+loadProviders();
+
+// 设置窗口:列表 + 编辑 + 删除 + 保存
+function openSettings() {
+  settingsMsg.textContent = '';
+  renderProviderList();
+  settingsModal.classList.remove('hidden');
+}
+
+async function renderProviderList() {
+  const providers = await (await fetch('/api/providers')).json();
+  providerList.innerHTML = '';
+  for (const p of providers) {
+    const item = document.createElement('div');
+    item.className = 'provider-item';
+    const name = document.createElement('span');
+    name.className = 'p-name';
+    name.textContent = p.name;
+    const meta = document.createElement('span');
+    meta.className = 'p-meta';
+    meta.textContent = `${p.model} @ ${p.baseUrl}`;
+    const editBtn = document.createElement('button');
+    editBtn.textContent = '编辑';
+    editBtn.addEventListener('click', () => {
+      providerForm.name.value = p.name;
+      providerForm.baseUrl.value = p.baseUrl;
+      providerForm.apiKey.value = p.apiKey;
+      providerForm.model.value = p.model;
+      providerForm.extraArgs.value = p.extraArgs;
+    });
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '删除';
+    delBtn.addEventListener('click', async () => {
+      await fetch(`/api/providers/${encodeURIComponent(p.name)}`, { method: 'DELETE' });
+      renderProviderList();
+      loadProviders();
+    });
+    item.append(name, meta, editBtn, delBtn);
+    providerList.appendChild(item);
+  }
+}
+
+providerForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  settingsMsg.textContent = '';
+  const body = {
+    name: providerForm.name.value,
+    baseUrl: providerForm.baseUrl.value,
+    apiKey: providerForm.apiKey.value,
+    model: providerForm.model.value,
+    extraArgs: providerForm.extraArgs.value,
+  };
+  const res = await fetch('/api/providers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    settingsMsg.textContent = data.error ?? '保存失败';
+    return;
+  }
+  providerForm.reset();
+  renderProviderList();
+  loadProviders();
+});
+
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+document.getElementById('settings-close').addEventListener('click', () => {
+  settingsModal.classList.add('hidden');
+});
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) settingsModal.classList.add('hidden');
+});
 
 async function loadDecks() {
   try {
@@ -121,7 +220,12 @@ async function send() {
     const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ agent: agentSelect.value, question, slideContext }),
+      body: JSON.stringify({
+        agent: agentSelect.value,
+        provider: providerSelect.value,
+        question,
+        slideContext,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
