@@ -138,6 +138,28 @@ test('GET /api/media 文件不存在返回 404', async () => {
   assert.equal(res.status, 404);
 });
 
+test('POST /api/ask-stream 以 SSE 流式返回 text 事件与最终结果', async () => {
+  const res = await fetch(`${base}/api/ask-stream`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent: 'mock', question: '测试问题', slideContext: '' }),
+  });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /text\/event-stream/);
+  const body = await res.text();
+  assert.ok(body.includes('"type":"text"'), '应包含 text 增量事件');
+  assert.ok(body.includes('"type":"result"'), '应包含 result 事件');
+  assert.ok(body.includes('这是 mock 回答'), 'result 应含回答');
+  assert.ok(body.includes('slide'), 'result 应含幻灯片');
+});
+
+test('POST /api/ask-stream 未知 agent 返回 400', async () => {
+  const res = await fetch(`${base}/api/ask-stream`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agent: 'nobody', question: 'x' }),
+  });
+  assert.equal(res.status, 400);
+});
+
 test('POST /api/ask 用 mock agent 返回 answer 与渲染后的 slide', async () => {
   const res = await fetch(`${base}/api/ask`, {
     method: 'POST',

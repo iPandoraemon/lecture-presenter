@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readdir, readFile } from 'node:fs/promises';
-import { loadAgents, runAgent, buildProviderArgs } from './agents.js';
+import { loadAgents, runAgent, buildProviderArgs, runAgentStream } from './agents.js';
 import { loadTemplates, validateSlots, renderTemplate } from './templates.js';
 import { parseAgentOutput } from './parse.js';
 import { buildPrompt } from './prompt.js';
@@ -149,6 +149,61 @@ export function createApp(options = {}) {
     } catch (err) {
       res.status(502).json({ error: `agent 调用失败: ${err.message}` });
     }
+  });
+
+  // SSE 流式问答:pi 走 --mode json 事件流(thinking/text 增量),其余 agent 整段输出
+  app.post('/api/ask-stream', async (req, res) => {
+    const { agent, question, slideContext, provider } = req.body ?? {};
+    if (typeof agent !== 'string' || !agent || typeof question !== 'string' || !question) {
+      return res.status(400).json({ error: '缺少 agent 或 question' });
+    }
+    let agents;
+    try {
+      agents = await loadAgents(path.join(ROOT, 'config', 'agents.json'));
+    } catch (err) {
+      return res.status(500).json({ error: `配置加载失败: ${err.message}` });
+    }
+    const cfg = agents[agent];
+    if (!cfg || cfg.enabled === false) {
+      return res.status(400).json({ error: `agent "${agent}" 不可用` });
+    }
+    let argsOverride;
+    if (agent === 'pi' && provider) {
+      const profile = (await loadProviders(providersPath)).find((p) => p.name === provider);
+      if (!profile) {
+        return res.status(400).json({ error: `模型商 "${provider}" 不存在` });
+      }
+      argsOverride = buildProviderArgs(profile);
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+    const sendEvent = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+    try {
+      const templates = await loadTemplates(path.join(ROOT, 'templates'));
+      const prompt = buildPrompt({ question, slideContext: slideContext ?? '', templates });
+      const fullText = await runAgentStream(cfg, prompt, argsOverride, sendEvent, {
+        jsonMode: agent === 'pi',
+      });
+      const parsed = parseAgentOutput(fullText);
+      const tpl = parsed.template && templates.find((t) => t.id === parsed.template);
+      if (!tpl) {
+        sendEvent({ type: 'result', answer: parsed.answer });
+      } else {
+        const slots = validateSlots(tpl, parsed.slots);
+        const html = renderTemplate(tpl, slots);
+        sendEvent({
+          type: 'result',
+          answer: parsed.answer,
+          slide: { templateId: tpl.id, html, css: tpl.style },
+        });
+      }
+    } catch (err) {
+      sendEvent({ type: 'error', error: `agent 调用失败: ${err.message}` });
+    }
+    res.end();
   });
 
   return app;

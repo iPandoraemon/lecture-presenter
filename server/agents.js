@@ -63,3 +63,76 @@ export function buildProviderArgs(profile) {
     '{prompt}',
   ];
 }
+
+// 流式调用:jsonMode 时按 pi --mode json 的 JSON 行事件解析,
+// thinking_delta / text_delta 通过 onEvent 回调,返回完整 text 供后续解析;
+// 非 jsonMode 退化为整段输出单个 text 事件
+export async function runAgentStream(agentCfg, prompt, argsOverride, onEvent, { jsonMode = false } = {}) {
+  if (!agentCfg || agentCfg.enabled === false) {
+    throw new Error('agent 不可用');
+  }
+  let args = [...(argsOverride ?? agentCfg.args)];
+  if (jsonMode) {
+    // --mode json 插在 {prompt} 之前,避免被当作消息文本
+    const i = args.indexOf('{prompt}');
+    args.splice(i >= 0 ? i : args.length, 0, '--mode', 'json');
+  }
+  args = args.map((a) => a.replace('{prompt}', () => prompt));
+  const timeoutSec = agentCfg.timeout ?? 60;
+  return new Promise((resolve, reject) => {
+    const child = spawn(agentCfg.command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let text = '';
+    let stderr = '';
+    let lineBuf = '';
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+    }, timeoutSec * 1000);
+    child.stdout.on('data', (d) => {
+      if (!jsonMode) {
+        text += d;
+        if (text.length > MAX_OUTPUT) child.kill('SIGTERM');
+        return;
+      }
+      lineBuf += d;
+      let idx;
+      while ((idx = lineBuf.indexOf('\n')) >= 0) {
+        const line = lineBuf.slice(0, idx).trim();
+        lineBuf = lineBuf.slice(idx + 1);
+        if (!line.startsWith('{')) continue;
+        try {
+          const ev = JSON.parse(line);
+          const ame = ev.type === 'message_update' ? ev.assistantMessageEvent : null;
+          if (ame?.type === 'thinking_delta' && ame.delta) {
+            onEvent({ type: 'thinking', delta: ame.delta });
+          } else if (ame?.type === 'text_delta' && ame.delta) {
+            text += ame.delta;
+            onEvent({ type: 'text', delta: ame.delta });
+          }
+        } catch {
+          // 非完整 JSON 行,忽略
+        }
+      }
+    });
+    child.stderr.on('data', (d) => {
+      stderr += d;
+      if (stderr.length > MAX_OUTPUT) stderr = stderr.slice(-MAX_OUTPUT);
+    });
+    child.on('error', () => {
+      clearTimeout(timer);
+      reject(new Error(`CLI 未安装: ${agentCfg.command}`));
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (timedOut) {
+        reject(new Error(`agent 调用超时(${timeoutSec}s)`));
+      } else if (code === 0) {
+        if (!jsonMode) onEvent({ type: 'text', delta: text });
+        resolve(text);
+      } else {
+        reject(new Error(`agent 退出码 ${code}: ${stderr.trim().slice(0, 200) || '(无错误输出)'}`));
+      }
+    });
+  });
+}

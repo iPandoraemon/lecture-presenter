@@ -8,9 +8,11 @@ export function parseAgentOutput(stdout) {
     const slots = (obj.slots && typeof obj.slots === 'object' && !Array.isArray(obj.slots))
       ? { ...obj.slots }
       : {};
-    // 容错:模型有时把 answer 误嵌进 slots,提升为根级
+    // 回答来源优先级:JSON.answer(旧契约) > 误嵌进 slots 的 answer > JSON 前的纯文本(新契约)
+    const preText = text.slice(0, match.index).trim();
     const answer = (typeof obj.answer === 'string' && obj.answer)
       || (typeof slots.answer === 'string' && slots.answer)
+      || preText
       || null;
     if (!answer) return { answer: text };
     delete slots.answer;

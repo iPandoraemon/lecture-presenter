@@ -290,6 +290,7 @@ function appendBubble(role, text) {
   div.textContent = text;
   chatLog.appendChild(div);
   chatLog.scrollTop = chatLog.scrollHeight;
+  return div;
 }
 
 // 把渲染后的模板正文提取为纯文本行(供问答导出)
@@ -324,17 +325,109 @@ function insertDynamicSlide(slide) {
   return slideToText(body);
 }
 
-let sending = false;
-async function send() {
-  const question = chatInput.value.trim();
-  if (!question || sending) return;
-  sending = true;
-  statusDot.className = 'dot busy';
-  appendBubble('user', question);
-  chatInput.value = '';
+// 思考过程块:流式期间展开,正文开始时自动收起,用户可随时点击切换
+function createThinkingBlock() {
+  const box = document.createElement('div');
+  box.className = 'bubble ai thinking';
+  const head = document.createElement('button');
+  head.className = 'thinking-head';
+  head.textContent = '思考过程 ▾';
+  const body = document.createElement('div');
+  body.className = 'thinking-body';
+  head.addEventListener('click', () => {
+    const collapsed = box.classList.toggle('collapsed');
+    head.textContent = collapsed ? '思考过程 ▸' : '思考过程 ▾';
+  });
+  box.append(head, body);
+  chatLog.appendChild(box);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return {
+    append(delta) {
+      body.textContent += delta;
+      chatLog.scrollTop = chatLog.scrollHeight;
+    },
+    collapse() {
+      box.classList.add('collapsed');
+      head.textContent = '思考过程 ▸';
+    },
+    finish() {
+      if (!body.textContent.trim()) box.remove();
+    },
+    discard() {
+      box.remove();
+    },
+  };
+}
+
+// pi 的流式问答(SSE):思考过程流式展开,回答流出后收起思考、流式显示回答
+async function sendStream(question, slideContext) {
+  const thinking = createThinkingBlock();
+  const answerBubble = appendBubble('ai', '');
+  let streamed = '';
   try {
-    const slideContext =
-      document.querySelector('.slides > section.present')?.textContent ?? '';
+    const res = await fetch('/api/ask-stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent: agentSelect.value,
+        provider: providerSelect.value,
+        question,
+        slideContext,
+      }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      thinking.discard();
+      answerBubble.remove();
+      appendBubble('ai error', d.error ?? '请求失败');
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const raw = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        if (!raw.startsWith('data: ')) continue;
+        const ev = JSON.parse(raw.slice(6));
+        if (ev.type === 'thinking') {
+          thinking.append(ev.delta);
+        } else if (ev.type === 'text') {
+          if (!streamed) thinking.collapse();
+          streamed += ev.delta;
+          // 新契约:回答纯文本在前、幻灯片 JSON 在后;JSON 开始则收起显示
+          const jsonStart = streamed.indexOf('{');
+          answerBubble.textContent = jsonStart >= 0
+            ? streamed.slice(0, jsonStart).trim() + '\n⏳ 正在生成幻灯片…'
+            : streamed;
+          chatLog.scrollTop = chatLog.scrollHeight;
+        } else if (ev.type === 'result') {
+          thinking.finish();
+          answerBubble.textContent = ev.answer ?? streamed;
+          const entry = { question, answer: ev.answer ?? streamed, template: ev.slide?.templateId };
+          if (ev.slide) entry.slideContent = insertDynamicSlide(ev.slide);
+          qaLog.push(entry);
+        } else if (ev.type === 'error') {
+          thinking.finish();
+          if (!streamed) answerBubble.remove();
+          appendBubble('ai error', ev.error);
+        }
+      }
+    }
+  } catch (err) {
+    thinking.finish();
+    appendBubble('ai error', '网络错误: ' + err.message);
+  }
+}
+
+// 非流式问答(mock 等)
+async function sendClassic(question, slideContext) {
+  try {
     const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -360,9 +453,29 @@ async function send() {
     }
   } catch (err) {
     appendBubble('ai error', '网络错误: ' + err.message);
+  }
+}
+
+let sending = false;
+async function send() {
+  const question = chatInput.value.trim();
+  if (!question || sending) return;
+  sending = true;
+  statusDot.className = 'dot busy';
+  sendBtn.disabled = true;
+  sendBtn.textContent = '回复中…';
+  appendBubble('user', question);
+  chatInput.value = '';
+  try {
+    const slideContext =
+      document.querySelector('.slides > section.present')?.textContent ?? '';
+    if (agentSelect.value === 'pi') await sendStream(question, slideContext);
+    else await sendClassic(question, slideContext);
   } finally {
     sending = false;
     statusDot.className = 'dot';
+    sendBtn.disabled = false;
+    sendBtn.textContent = '发送';
   }
 }
 

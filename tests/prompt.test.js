@@ -11,5 +11,6 @@ test('buildPrompt 包含问题、上下文、模板清单与 JSON 契约', () =>
   assert.ok(p.includes('什么是闭包?'));
   assert.ok(p.includes('# 函数'));
   assert.ok(p.includes('key-points'));
-  assert.ok(p.includes('"answer"'));
+  assert.ok(p.includes('"template"'));
+  assert.ok(p.includes('纯文本回答在前,JSON 在后'));
 });

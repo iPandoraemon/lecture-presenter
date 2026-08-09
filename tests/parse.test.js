@@ -38,3 +38,12 @@ test('answer 误嵌套在 slots 内时提升为根级字段', () => {
   assert.equal(out.answer, '嵌套回答');
   assert.deepEqual(out.slots, { title: 't', points: ['a'] });
 });
+
+test('新契约:JSON 前的纯文本作为回答(JSON 无 answer 字段)', () => {
+  const out = parseAgentOutput(
+    '闭包是函数加词法作用域。\n{"template":"key-points","slots":{"title":"t","points":["a"]}}',
+  );
+  assert.equal(out.template, 'key-points');
+  assert.equal(out.answer, '闭包是函数加词法作用域。');
+  assert.deepEqual(out.slots, { title: 't', points: ['a'] });
+});

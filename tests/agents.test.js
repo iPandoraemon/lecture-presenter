@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runAgent, buildProviderArgs } from '../server/agents.js';
+import { runAgent, buildProviderArgs, runAgentStream } from '../server/agents.js';
 
 test('runAgent 替换 {prompt} 并返回 stdout', async () => {
   const out = await runAgent(
@@ -86,4 +86,38 @@ test('子进程读 stdin 时立即得到 EOF,不挂起', async () => {
     'x',
   );
   assert.equal(out.trim(), '0');
+});
+
+test('runAgentStream jsonMode 解析 thinking/text 增量事件', async () => {
+  const script = [
+    'console.log(JSON.stringify({type:"message_update",assistantMessageEvent:{type:"thinking_delta",delta:"想一"}}))',
+    'console.log(JSON.stringify({type:"message_update",assistantMessageEvent:{type:"thinking_delta",delta:"想二"}}))',
+    'console.log(JSON.stringify({type:"message_update",assistantMessageEvent:{type:"text_delta",delta:"答"}}))',
+    'console.log(JSON.stringify({type:"message_update",assistantMessageEvent:{type:"text_delta",delta:"案"}}))',
+  ].join(';');
+  const events = [];
+  const text = await runAgentStream(
+    { command: 'node', args: ['-e', script, '--', '{prompt}'], timeout: 5 },
+    'x', undefined,
+    (ev) => events.push(ev),
+    { jsonMode: true },
+  );
+  assert.deepEqual(events, [
+    { type: 'thinking', delta: '想一' },
+    { type: 'thinking', delta: '想二' },
+    { type: 'text', delta: '答' },
+    { type: 'text', delta: '案' },
+  ]);
+  assert.equal(text, '答案');
+});
+
+test('runAgentStream 非 jsonMode 整段输出为单个 text 事件', async () => {
+  const events = [];
+  const text = await runAgentStream(
+    { command: 'node', args: ['-e', 'console.log("整段输出")'], timeout: 5 },
+    'x', undefined,
+    (ev) => events.push(ev),
+  );
+  assert.deepEqual(events, [{ type: 'text', delta: '整段输出\n' }]);
+  assert.equal(text, '整段输出\n');
 });
