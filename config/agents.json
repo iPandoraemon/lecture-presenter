@@ -2,7 +2,7 @@
   "claude": { "enabled": true, "command": "claude", "args": ["-p", "{prompt}"], "timeout": 60 },
   "kimi": { "enabled": true, "command": "kimi", "args": ["-p", "{prompt}"], "timeout": 60 },
   "opencode": { "enabled": true, "command": "opencode", "args": ["run", "{prompt}"], "timeout": 60 },
-  "pi": { "enabled": true, "command": "pi", "args": ["-p", "--no-tools", "{prompt}"], "timeout": 60 },
+  "pi": { "enabled": true, "command": "pi", "args": ["-p", "--no-tools", "--provider", "deepseek", "--model", "deepseek-v4-flash", "{prompt}"], "timeout": 60 },
   "mock": {
     "enabled": true,
     "command": "node",
