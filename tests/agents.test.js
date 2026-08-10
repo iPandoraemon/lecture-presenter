@@ -121,3 +121,24 @@ test('runAgentStream 非 jsonMode 整段输出为单个 text 事件', async () =
   assert.deepEqual(events, [{ type: 'text', delta: '整段输出\n' }]);
   assert.equal(text, '整段输出\n');
 });
+
+test('runAgentStream 过滤 DSML 工具标记(跨事件拆分)', async () => {
+  const script = [
+    'console.log(JSON.stringify({type:"message_update",assistantMessageEvent:{type:"thinking_delta",delta:"我先<||DS"}}))',
+    'console.log(JSON.stringify({type:"message_update",assistantMessageEvent:{type:"thinking_delta",delta:"ML|| invoke name=\\"read_file\\">junk</||DSML|| invoke>再回答"}}))',
+    'console.log(JSON.stringify({type:"message_update",assistantMessageEvent:{type:"text_delta",delta:"答案"}}))',
+  ].join(';');
+  const events = [];
+  const text = await runAgentStream(
+    { command: 'node', args: ['-e', script, '--', '{prompt}'], timeout: 5 },
+    'x', undefined,
+    (ev) => events.push(ev),
+    { jsonMode: true },
+  );
+  assert.deepEqual(events, [
+    { type: 'thinking', delta: '我先' },
+    { type: 'thinking', delta: '再回答' },
+    { type: 'text', delta: '答案' },
+  ]);
+  assert.equal(text, '答案');
+});

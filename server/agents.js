@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { stripDsml, createDsmlFilter } from './dsml.js';
 
 export async function loadAgents(configPath) {
   const raw = await readFile(configPath, 'utf8');
@@ -85,6 +86,9 @@ export async function runAgentStream(agentCfg, prompt, argsOverride, onEvent, { 
     let stderr = '';
     let lineBuf = '';
     let timedOut = false;
+    // DSML 工具标记过滤:思考与正文各一条流
+    const thinkingFilter = createDsmlFilter();
+    const textFilter = createDsmlFilter();
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
@@ -105,10 +109,14 @@ export async function runAgentStream(agentCfg, prompt, argsOverride, onEvent, { 
           const ev = JSON.parse(line);
           const ame = ev.type === 'message_update' ? ev.assistantMessageEvent : null;
           if (ame?.type === 'thinking_delta' && ame.delta) {
-            onEvent({ type: 'thinking', delta: ame.delta });
+            const clean = thinkingFilter.push(ame.delta);
+            if (clean) onEvent({ type: 'thinking', delta: clean });
           } else if (ame?.type === 'text_delta' && ame.delta) {
-            text += ame.delta;
-            onEvent({ type: 'text', delta: ame.delta });
+            const clean = textFilter.push(ame.delta);
+            if (clean) {
+              text += clean;
+              onEvent({ type: 'text', delta: clean });
+            }
           }
         } catch {
           // 非完整 JSON 行,忽略
@@ -128,8 +136,20 @@ export async function runAgentStream(agentCfg, prompt, argsOverride, onEvent, { 
       if (timedOut) {
         reject(new Error(`agent 调用超时(${timeoutSec}s)`));
       } else if (code === 0) {
-        if (!jsonMode) onEvent({ type: 'text', delta: text });
-        resolve(text);
+        if (jsonMode) {
+          // 冲刷过滤器尾部(未闭合的 DSML 块会被丢弃)
+          const thinkingTail = thinkingFilter.flush();
+          if (thinkingTail) onEvent({ type: 'thinking', delta: thinkingTail });
+          const textTail = textFilter.flush();
+          if (textTail) {
+            text += textTail;
+            onEvent({ type: 'text', delta: textTail });
+          }
+          resolve(stripDsml(text));
+        } else {
+          onEvent({ type: 'text', delta: text });
+          resolve(text);
+        }
       } else {
         reject(new Error(`agent 退出码 ${code}: ${stderr.trim().slice(0, 200) || '(无错误输出)'}`));
       }
